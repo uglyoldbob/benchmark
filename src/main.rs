@@ -42,11 +42,12 @@ fn main() {
         let mut num_cycles = 1000000;
         let mut sum = 0.0;
         loop {
-            let start = Instant::now();
+            let clock = quanta::Clock::new();
+            let start = clock.raw();
             let (each, r) = cpuload::load_select(num_cycles);
             sum += r;
-            let end = Instant::now();
-            let d = end - start;
+            let end = clock.raw();
+            let d = clock.delta(start, end);
             if d.as_millis() < 1 {
                 num_cycles *= 10;
             }
