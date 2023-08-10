@@ -1,10 +1,18 @@
+#![feature(portable_simd)]
+
+use std::time::Instant;
+
 use egui_multiwin::multi_window::MultiWindow;
 
+mod cpuload;
 mod windows;
 
 use windows::root::{self};
 
-pub struct AppCommon {}
+pub struct AppCommon {
+    #[cfg(target_os = "linux")]
+    sensors: Option<lm_sensors::LMSensors>,
+}
 
 impl egui_multiwin::multi_window::CommonEventHandler<AppCommon, u32> for AppCommon {
     fn process_event(
@@ -25,7 +33,30 @@ fn main() {
     let mut multi_window: MultiWindow<AppCommon, u32> = MultiWindow::new();
     let root_window = root::RootWindow::new();
 
-    let ac = AppCommon {};
+    let ms = lm_sensors::Initializer::default().initialize();
+
+    let ac = AppCommon { sensors: ms.ok() };
+
+    let thread = std::thread::spawn(|| {
+        println!("running long calc on cpu now");
+        let mut num_cycles = 1000000;
+        let mut sum = 0.0;
+        loop {
+            let start = Instant::now();
+            let (each, r) = cpuload::load_select(num_cycles);
+            sum += r;
+            let end = Instant::now();
+            let d = end - start;
+            if d.as_millis() < 1 {
+                num_cycles *= 10;
+            }
+            else {
+                let ratio = 1000.0 / d.as_millis() as f64;
+                num_cycles = (num_cycles as f64 * ratio) as usize;
+            }
+            println!("Iterations is {} Number is {}", num_cycles * each, sum);
+        }
+    });
 
     let _e = multi_window.add(root_window, &event_loop);
     multi_window.run(event_loop, ac);

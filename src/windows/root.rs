@@ -4,6 +4,9 @@ use egui_multiwin::{
     tracked_window::{RedrawResponse, TrackedWindow},
 };
 
+#[cfg(target_os = "linux")]
+use lm_sensors::prelude::*;
+
 use crate::AppCommon;
 
 pub struct RootWindow {}
@@ -54,7 +57,33 @@ impl TrackedWindow<AppCommon> for RootWindow {
 
         egui_multiwin::egui::CentralPanel::default().show(&egui.egui_ctx, |ui| {
             ui.label("I am groot".to_string());
+            egui_multiwin::egui::ScrollArea::vertical().show(ui, |ui| {
+                if let Some(sensors) = &c.sensors {
+                    for chip in sensors.chip_iter(None) {
+                        if let Some(p) = chip.path() {
+                            ui.label(format!("chip {}", p.display()));
+                        }
+
+                        for feature in chip.feature_iter() {
+                            let name = feature.name().transpose();
+                            if let Ok(Some(name)) = name {
+                                ui.label(format!("    {}: {}", name, feature));
+
+                                // Print all sub-features of the current chip feature.
+                                for sub_feature in feature.sub_feature_iter() {
+                                    if let Ok(value) = sub_feature.value() {
+                                        ui.label(format!("        {}: {}", sub_feature, value));
+                                    } else {
+                                        ui.label(format!("        {}: N/A", sub_feature));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         });
+
         RedrawResponse {
             quit: quit,
             new_windows: windows_to_create,

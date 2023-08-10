@@ -7,3 +7,14 @@ edition = "2021"
 
 [dependencies]
 egui-multiwin = "0.1.7"
+
+[target.'cfg(unix)'.dependencies]
+lm-sensors = "0.1.6"
+
+[dev-dependencies]
+criterion = "0.3.6"
+
+[[bench]]
+name="main_bench"
+path="src/benchmark.rs"
+harness = false
