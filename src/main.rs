@@ -1,4 +1,8 @@
 #![feature(portable_simd)]
+#![cfg_attr(
+    all(target_os = "windows", not(debug_assertions)),
+    windows_subsystem = "windows"
+)] // hide console window on Windows in release
 
 use std::time::Instant;
 
@@ -33,9 +37,13 @@ fn main() {
     let mut multi_window: MultiWindow<AppCommon, u32> = MultiWindow::new();
     let root_window = root::RootWindow::new();
 
+    #[cfg(target_os = "linux")]
     let ms = lm_sensors::Initializer::default().initialize();
 
-    let ac = AppCommon { sensors: ms.ok() };
+    let ac = AppCommon {
+        #[cfg(target_os = "linux")]
+        sensors: ms.ok(),
+    };
 
     let thread = std::thread::spawn(|| {
         println!("running long calc on cpu now");

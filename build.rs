@@ -25,6 +25,7 @@ fn find_cargo_target_dir() -> PathBuf {
 
 fn main() {
     let path = find_cargo_target_dir();
+    #[cfg(target_os = "linux")]
     println!(
         "cargo:rustc-link-arg=-Wl,-rpath,{}",
         path.to_str().expect("Link path is not an UTF-8 string")

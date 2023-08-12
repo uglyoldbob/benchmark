@@ -58,6 +58,7 @@ impl TrackedWindow<AppCommon> for RootWindow {
         egui_multiwin::egui::CentralPanel::default().show(&egui.egui_ctx, |ui| {
             ui.label("I am groot".to_string());
             egui_multiwin::egui::ScrollArea::vertical().show(ui, |ui| {
+                #[cfg(target_os = "linux")]
                 if let Some(sensors) = &c.sensors {
                     for chip in sensors.chip_iter(None) {
                         if let Some(p) = chip.path() {
