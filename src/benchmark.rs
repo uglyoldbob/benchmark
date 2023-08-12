@@ -2,13 +2,17 @@
 
 use criterion::Criterion;
 
-mod cpuload;
+mod cpu;
 
 pub fn bench1(c: &mut Criterion) {
     let mut group = c.benchmark_group("sse2 load");
     group.throughput(criterion::Throughput::Elements(96000000));
     group.bench_function("sse2", |b| {
-        b.iter(|| cpuload::load_select(1000000));
+        b.iter(|| cpu::load_select(1000000));
+    });
+
+    group.bench_function("sse2_rust", |b| {
+        b.iter(|| cpu::rust_load_select(1000000));
     });
 }
 

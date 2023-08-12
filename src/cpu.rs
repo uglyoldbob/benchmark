@@ -96,11 +96,23 @@ unsafe fn load_sse2(count: usize) -> (usize, f64) {
     return (96, reduce(d[0]));
 }
 
-pub fn load_select(count: usize) -> (usize, f64) {
+pub fn rust_load_select(count: usize) -> (usize, f64) {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
         if is_x86_feature_detected!("sse2") {
             return unsafe { load_sse2(count) };
+        } else {
+            return (1, 42.0);
+        }
+    }
+    (1, 41.0)
+}
+
+pub fn load_select(count: usize) -> (usize, f64) {
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    {
+        if is_x86_feature_detected!("sse2") {
+            return unsafe { (96, cpuload::sse_load(count as u32)) };
         } else {
             return (1, 42.0);
         }

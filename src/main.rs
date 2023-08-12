@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use egui_multiwin::multi_window::MultiWindow;
 
-mod cpuload;
+mod cpu;
 mod windows;
 
 use windows::root::{self};
@@ -44,14 +44,13 @@ fn main() {
         loop {
             let clock = quanta::Clock::new();
             let start = clock.raw();
-            let (each, r) = cpuload::load_select(num_cycles);
+            let (each, r) = cpu::load_select(num_cycles);
             sum += r;
             let end = clock.raw();
             let d = clock.delta(start, end);
             if d.as_millis() < 1 {
                 num_cycles *= 10;
-            }
-            else {
+            } else {
                 let ratio = 1000.0 / d.as_millis() as f64;
                 num_cycles = (num_cycles as f64 * ratio) as usize;
             }
