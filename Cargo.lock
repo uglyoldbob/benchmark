@@ -870,7 +870,7 @@ source = "git+https://github.com/uglyoldbob/hwlocality.git#a47de5a3a73e95bdf7a55
 dependencies = [
  "arrayvec",
  "autotools",
- "bitflags 2.3.3",
+ "bitflags 2.4.0",
  "derive_more",
  "errno",
  "libc",

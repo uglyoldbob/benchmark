@@ -48,6 +48,11 @@ impl TrackedWindow<AppCommon> for RootWindow {
 
         let mut windows_to_create = vec![];
 
+        egui.egui_ctx.request_repaint();
+        for thread in &mut c.cpu_threads {
+            thread.process_messages();
+        }
+
         egui_multiwin::egui::SidePanel::left("my_side_panel").show(&egui.egui_ctx, |ui| {
             ui.heading("Hello World!");
             if ui.button("Quit").clicked() {
@@ -81,6 +86,18 @@ impl TrackedWindow<AppCommon> for RootWindow {
                             }
                         }
                     }
+                }
+                for thread in &mut c.cpu_threads {
+                    ui.label(format!("CPU running {} {}", thread.running, thread.associated));
+                    ui.label(format!("Performance: {}", thread.performance));
+                    ui.horizontal(|ui| {
+                        if ui.button("Start").clicked() {
+                            thread.send.send(crate::cpu::MessageToCpuLoad::Start);
+                        }
+                        if ui.button("Stop").clicked() {
+                            thread.send.send(crate::cpu::MessageToCpuLoad::Stop);
+                        }
+                    });
                 }
             });
         });

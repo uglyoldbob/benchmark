@@ -6,6 +6,7 @@
 
 use std::time::Instant;
 
+use cpu::MessageToCpuLoad;
 use egui_multiwin::multi_window::MultiWindow;
 
 mod cpu;
@@ -16,6 +17,9 @@ use windows::root::{self};
 pub struct AppCommon {
     #[cfg(target_os = "linux")]
     sensors: Option<lm_sensors::LMSensors>,
+    #[cfg(feature = "hwlocality")]
+    topology: Option<hwlocality::Topology>,
+    cpu_threads: Vec<cpu::CpuLoadThread>,
 }
 
 impl egui_multiwin::multi_window::CommonEventHandler<AppCommon, u32> for AppCommon {
@@ -40,9 +44,33 @@ fn main() {
     #[cfg(target_os = "linux")]
     let ms = lm_sensors::Initializer::default().initialize();
 
+    let mut threads = vec![];
+    #[cfg(feature = "hwlocality")]
+    let topology = hwlocality::Topology::new();
+    if let Err(e) = &topology {
+        println!("Error obtaining topology {}", e);
+    }
+    let mut topology = topology.ok();
+    if let Some(topology) = &mut topology {
+        let root = topology.root_object();
+        let cpuset = root.cpuset();
+        if let Some(cpuset) = cpuset {
+            for index in cpuset.iter_set() {
+                let thread = cpu::CpuLoadThread::new();
+                thread
+                    .send
+                    .send(MessageToCpuLoad::Associate(topology.clone(), index.into()));
+                threads.push(thread);
+            }
+        }
+    }
+
     let ac = AppCommon {
         #[cfg(target_os = "linux")]
         sensors: ms.ok(),
+        #[cfg(feature = "hwlocality")]
+        topology,
+        cpu_threads: threads,
     };
 
     let thread = cpu::CpuLoadThread::new();

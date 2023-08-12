@@ -2,18 +2,22 @@
 
 use std::{thread::JoinHandle, time::Duration};
 
+use hwlocality::cpu::binding::CpuBindingFlags;
+
 pub struct CpuLoadThread {
     thread: JoinHandle<()>,
     recv: std::sync::mpsc::Receiver<MessageFromCpuLoad>,
     pub send: std::sync::mpsc::Sender<MessageToCpuLoad>,
     pub performance: u64,
+    #[cfg(feature = "hwlocality")]
     pub associated: bool,
     pub running: bool,
     pub done: bool,
 }
 
 pub enum MessageToCpuLoad {
-    Associate,
+    #[cfg(feature = "hwlocality")]
+    Associate(hwlocality::Topology, hwlocality::cpu::cpusets::CpuSet),
     Start,
     Stop,
     Exit,
@@ -39,7 +43,19 @@ impl CpuLoadThread {
             'load: loop {
                 while let Ok(message) = r.try_recv() {
                     match message {
-                        MessageToCpuLoad::Associate => {}
+                        #[cfg(feature = "hwlocality")]
+                        MessageToCpuLoad::Associate(topology, cpuset) => {
+                            let r = topology.bind_cpu(&cpuset, CpuBindingFlags::THREAD).is_ok();
+                            associated = r;
+                            if s2
+                                .send(MessageFromCpuLoad::Associated(
+                                    associated,
+                                ))
+                                .is_err()
+                            {
+                                break 'load;
+                            }
+                        }
                         MessageToCpuLoad::Start => {
                             running = true;
                             if s2.send(MessageFromCpuLoad::Running(running)).is_err() {
