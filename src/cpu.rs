@@ -1,5 +1,130 @@
 //! The code here is adapted from https://github.com/Mysticial/Flops/tree/master
 
+use std::{thread::JoinHandle, time::Duration};
+
+pub struct CpuLoadThread {
+    thread: JoinHandle<()>,
+    recv: std::sync::mpsc::Receiver<MessageFromCpuLoad>,
+    pub send: std::sync::mpsc::Sender<MessageToCpuLoad>,
+    pub performance: u64,
+    pub associated: bool,
+    pub running: bool,
+    pub done: bool,
+}
+
+pub enum MessageToCpuLoad {
+    Associate,
+    Start,
+    Stop,
+    Exit,
+}
+
+pub enum MessageFromCpuLoad {
+    Performance(u64, f64),
+    Associated(bool),
+    Running(bool),
+    Done,
+}
+
+impl CpuLoadThread {
+    pub fn new() -> Self {
+        let (s, r) = std::sync::mpsc::channel();
+        let (s2, r2) = std::sync::mpsc::channel();
+        let thread = std::thread::spawn(move || {
+            let mut num_cycles = 1000000;
+            let mut sum = 0.0;
+            let mut running = false;
+            let mut associated = false;
+            let time = 1.0;
+            'load: loop {
+                while let Ok(message) = r.try_recv() {
+                    match message {
+                        MessageToCpuLoad::Associate => {}
+                        MessageToCpuLoad::Start => {
+                            running = true;
+                            if s2.send(MessageFromCpuLoad::Running(running)).is_err() {
+                                break 'load;
+                            }
+                        }
+                        MessageToCpuLoad::Stop => {
+                            running = false;
+                            if s2.send(MessageFromCpuLoad::Running(running)).is_err() {
+                                break 'load;
+                            }
+                        }
+                        MessageToCpuLoad::Exit => {}
+                    }
+                }
+                if running && associated {
+                    let clock = quanta::Clock::new();
+                    let start = clock.raw();
+                    let (each, r) = load_select(num_cycles);
+                    sum += r;
+                    let end = clock.raw();
+                    let d = clock.delta(start, end);
+                    if d.as_millis() < 1 {
+                        num_cycles *= 10;
+                    } else {
+                        let ratio = time * 1000.0 / d.as_millis() as f64;
+                        num_cycles = (num_cycles as f64 * ratio) as usize;
+                    }
+                    if s2
+                        .send(MessageFromCpuLoad::Performance(
+                            (num_cycles * each) as u64,
+                            sum,
+                        ))
+                        .is_err()
+                    {
+                        break 'load;
+                    }
+                } else {
+                    std::thread::sleep(Duration::from_millis(100));
+                }
+            }
+            let _e = s2.send(MessageFromCpuLoad::Done);
+        });
+        Self {
+            thread,
+            recv: r2,
+            send: s,
+            performance: 0,
+            associated: false,
+            running: false,
+            done: false,
+        }
+    }
+
+    pub fn process_messages(&mut self) {
+        while let Ok(message) = self.recv.try_recv() {
+            match message {
+                MessageFromCpuLoad::Performance(flops, _sum) => {
+                    self.performance = flops;
+                }
+                MessageFromCpuLoad::Associated(a) => {
+                    self.associated = a;
+                }
+                MessageFromCpuLoad::Running(r) => {
+                    self.running = r;
+                }
+                MessageFromCpuLoad::Done => {
+                    self.done = true;
+                }
+            }
+        }
+    }
+
+    pub fn end_and_wait(&mut self) {
+        let _e = self.send.send(MessageToCpuLoad::Stop);
+        let _e = self.send.send(MessageToCpuLoad::Exit);
+        'waiting: loop {
+            self.process_messages();
+            if self.done {
+                break 'waiting;
+            }
+        }
+    }
+}
+
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse2")]
 unsafe fn reduce(x: core::arch::x86_64::__m128d) -> f64 {

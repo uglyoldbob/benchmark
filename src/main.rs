@@ -45,26 +45,7 @@ fn main() {
         sensors: ms.ok(),
     };
 
-    let thread = std::thread::spawn(|| {
-        println!("running long calc on cpu now");
-        let mut num_cycles = 1000000;
-        let mut sum = 0.0;
-        loop {
-            let clock = quanta::Clock::new();
-            let start = clock.raw();
-            let (each, r) = cpu::load_select(num_cycles);
-            sum += r;
-            let end = clock.raw();
-            let d = clock.delta(start, end);
-            if d.as_millis() < 1 {
-                num_cycles *= 10;
-            } else {
-                let ratio = 1000.0 / d.as_millis() as f64;
-                num_cycles = (num_cycles as f64 * ratio) as usize;
-            }
-            println!("Iterations is {} Number is {}", num_cycles * each, sum);
-        }
-    });
+    let thread = cpu::CpuLoadThread::new();
 
     let _e = multi_window.add(root_window, &event_loop);
     multi_window.run(event_loop, ac);
