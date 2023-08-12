@@ -385,6 +385,7 @@ dependencies = [
 [[package]]
 name = "cpuload"
 version = "0.1.1"
+source = "git+https://github.com/uglyoldbob/Flops.git#e206b57725b9bd4c78272c1c0cc0e1784184ac14"
 dependencies = [
  "cfg-if",
  "cmake",
