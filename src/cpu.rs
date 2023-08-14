@@ -47,12 +47,7 @@ impl CpuLoadThread {
                         MessageToCpuLoad::Associate(topology, cpuset) => {
                             let r = topology.bind_cpu(&cpuset, CpuBindingFlags::THREAD).is_ok();
                             associated = r;
-                            if s2
-                                .send(MessageFromCpuLoad::Associated(
-                                    associated,
-                                ))
-                                .is_err()
-                            {
+                            if s2.send(MessageFromCpuLoad::Associated(associated)).is_err() {
                                 break 'load;
                             }
                         }

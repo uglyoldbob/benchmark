@@ -14,12 +14,19 @@ mod windows;
 
 use windows::root::{self};
 
+pub enum MessageToGui {
+    StopAllCpu,
+}
+
 pub struct AppCommon {
     #[cfg(target_os = "linux")]
     sensors: Option<lm_sensors::LMSensors>,
     #[cfg(feature = "hwlocality")]
     topology: Option<hwlocality::Topology>,
     cpu_threads: Vec<cpu::CpuLoadThread>,
+    timer: timer::Timer,
+    gui_send: std::sync::mpsc::Sender<MessageToGui>,
+    gui_recv: std::sync::mpsc::Receiver<MessageToGui>,
 }
 
 impl egui_multiwin::multi_window::CommonEventHandler<AppCommon, u32> for AppCommon {
@@ -40,6 +47,8 @@ fn main() {
     let event_loop = egui_multiwin::winit::event_loop::EventLoopBuilder::with_user_event().build();
     let mut multi_window: MultiWindow<AppCommon, u32> = MultiWindow::new();
     let root_window = root::RootWindow::new();
+
+    println!("Starting application");
 
     #[cfg(target_os = "linux")]
     let ms = lm_sensors::Initializer::default().initialize();
@@ -65,12 +74,17 @@ fn main() {
         }
     }
 
+    let (gs, gr) = std::sync::mpsc::channel();
+
     let ac = AppCommon {
         #[cfg(target_os = "linux")]
         sensors: ms.ok(),
         #[cfg(feature = "hwlocality")]
         topology,
         cpu_threads: threads,
+        timer: timer::Timer::new(),
+        gui_send: gs,
+        gui_recv: gr,
     };
 
     let thread = cpu::CpuLoadThread::new();

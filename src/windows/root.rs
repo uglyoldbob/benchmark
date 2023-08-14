@@ -7,7 +7,7 @@ use egui_multiwin::{
 #[cfg(target_os = "linux")]
 use lm_sensors::prelude::*;
 
-use crate::AppCommon;
+use crate::{AppCommon, MessageToGui};
 
 pub struct RootWindow {}
 
@@ -52,6 +52,15 @@ impl TrackedWindow<AppCommon> for RootWindow {
         for thread in &mut c.cpu_threads {
             thread.process_messages();
         }
+        while let Ok(message) = c.gui_recv.try_recv() {
+            match message {
+                MessageToGui::StopAllCpu => {
+                    for t in &mut c.cpu_threads {
+                        let _e = t.send.send(crate::cpu::MessageToCpuLoad::Stop);
+                    }
+                }
+            }
+        }
 
         egui_multiwin::egui::SidePanel::left("my_side_panel").show(&egui.egui_ctx, |ui| {
             ui.heading("Hello World!");
@@ -88,7 +97,10 @@ impl TrackedWindow<AppCommon> for RootWindow {
                     }
                 }
                 for thread in &mut c.cpu_threads {
-                    ui.label(format!("CPU running {} {}", thread.running, thread.associated));
+                    ui.label(format!(
+                        "CPU running {} {}",
+                        thread.running, thread.associated
+                    ));
                     ui.label(format!("Performance: {}", thread.performance));
                     ui.horizontal(|ui| {
                         if ui.button("Start").clicked() {
@@ -98,6 +110,17 @@ impl TrackedWindow<AppCommon> for RootWindow {
                             thread.send.send(crate::cpu::MessageToCpuLoad::Stop);
                         }
                     });
+                }
+                if ui.button("Timed cpu load").clicked() {
+                    let send = c.gui_send.clone();
+                    for t in &mut c.cpu_threads {
+                        let _e = t.send.send(crate::cpu::MessageToCpuLoad::Start);
+                    }
+                    c.timer
+                        .schedule_with_delay(chrono::Duration::milliseconds(5000), move || {
+                            println!("Stopping all cpu threads");
+                            send.send(MessageToGui::StopAllCpu);
+                        }).ignore();
                 }
             });
         });
