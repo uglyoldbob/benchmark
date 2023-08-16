@@ -48,7 +48,7 @@ impl TrackedWindow<AppCommon> for RootWindow {
 
         let mut windows_to_create = vec![];
 
-        egui.egui_ctx.request_repaint();
+        egui.egui_ctx.request_repaint_after(std::time::Duration::from_millis(100));
         for thread in &mut c.cpu_threads {
             thread.process_messages();
         }

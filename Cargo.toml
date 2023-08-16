@@ -13,7 +13,7 @@ hwlocality = ["dep:hwlocality"]
 [dependencies]
 chrono = "0.4.26"
 cpuload = { git = "https://github.com/uglyoldbob/Flops.git", version = "0.1.1" }
-egui-multiwin = "0.1.7"
+egui-multiwin = "0.1.8"
 quanta = "0.11.1"
 timer = "0.2.0"
 
