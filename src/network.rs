@@ -8,23 +8,15 @@ use cpu::MessageToCpuLoad;
 use egui_multiwin::multi_window::MultiWindow;
 
 mod cpu;
-mod windows;
+mod windows_network;
 
-use windows::root::{self};
+use windows_network::root::{self};
 
 pub enum MessageToGui {
     StopAllCpu,
 }
 
 pub struct AppCommon {
-    #[cfg(target_os = "linux")]
-    sensors: Option<lm_sensors::LMSensors>,
-    #[cfg(feature = "hwlocality")]
-    topology: Option<hwlocality::Topology>,
-    cpu_threads: Vec<cpu::CpuLoadThread>,
-    timer: timer::Timer,
-    gui_send: std::sync::mpsc::Sender<MessageToGui>,
-    gui_recv: std::sync::mpsc::Receiver<MessageToGui>,
 }
 
 impl egui_multiwin::multi_window::CommonEventHandler<AppCommon, u32> for AppCommon {
@@ -72,20 +64,9 @@ fn main() {
         }
     }
 
-    let (gs, gr) = std::sync::mpsc::channel();
-
     let ac = AppCommon {
-        #[cfg(target_os = "linux")]
-        sensors: ms.ok(),
-        #[cfg(feature = "hwlocality")]
-        topology,
-        cpu_threads: threads,
-        timer: timer::Timer::new(),
-        gui_send: gs,
-        gui_recv: gr,
     };
 
-    let thread = cpu::CpuLoadThread::new();
 
     let _e = multi_window.add(root_window, &event_loop);
     multi_window.run(event_loop, ac);

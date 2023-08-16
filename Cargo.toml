@@ -33,3 +33,11 @@ criterion = "0.3.6"
 name="main_bench"
 path="src/benchmark.rs"
 harness = false
+
+[[bin]]
+name = "benchmark"
+path = "src/main.rs"
+
+[[bin]]
+name = "network-listener"
+path = "src/network.rs"

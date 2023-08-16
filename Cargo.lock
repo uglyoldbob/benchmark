@@ -433,10 +433,11 @@ dependencies = [
 [[package]]
 name = "cpuload"
 version = "0.1.1"
-source = "git+https://github.com/uglyoldbob/Flops.git#36343600912c8b89a4543e8f1d9bf438e006a76f"
+source = "git+https://github.com/uglyoldbob/Flops.git#7885990efe4d2ee39f5f8b7ab410ae421f5717b7"
 dependencies = [
  "cfg-if",
  "cmake",
+ "pkg-config",
  "version-compare",
 ]
 
