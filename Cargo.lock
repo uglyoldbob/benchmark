@@ -156,6 +156,7 @@ dependencies = [
  "hwlocality",
  "lm-sensors",
  "quanta",
+ "sysinfo",
  "timer",
 ]
 
@@ -433,7 +434,7 @@ dependencies = [
 [[package]]
 name = "cpuload"
 version = "0.1.1"
-source = "git+https://github.com/uglyoldbob/Flops.git#7885990efe4d2ee39f5f8b7ab410ae421f5717b7"
+source = "git+https://github.com/uglyoldbob/Flops.git#dde2eae25329eaf83829a0217ed2799687b3c204"
 dependencies = [
  "cfg-if",
  "cmake",
@@ -899,7 +900,7 @@ dependencies = [
 [[package]]
 name = "hwlocality"
 version = "1.0.0"
-source = "git+https://github.com/uglyoldbob/hwlocality.git#9c2987adf2384298debda3429db122848fa5c821"
+source = "git+https://github.com/uglyoldbob/hwlocality.git#4c9def83b48879b31770edeb69a5a069e1f61371"
 dependencies = [
  "arrayvec",
  "autotools",
@@ -912,7 +913,6 @@ dependencies = [
  "once_cell",
  "pkg-config",
  "thiserror",
- "version-compare",
  "windows-sys 0.48.0",
 ]
 
@@ -1246,6 +1246,15 @@ checksum = "d273983c5a657a70a3e8f2a01329822f3b8c8172b73826411a55751e404a0a4a"
 dependencies = [
  "memchr",
  "minimal-lexical",
+]
+
+[[package]]
+name = "ntapi"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8a3895c6391c39d7fe7ebc444a87eb2991b2a0bc718fdabd071eec617fc68e4"
+dependencies = [
+ "winapi",
 ]
 
 [[package]]
@@ -1804,6 +1813,21 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "sysinfo"
+version = "0.29.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d10ed79c22663a35a255d289a7fdcb43559fc77ff15df5ce6c341809e7867528"
+dependencies = [
+ "cfg-if",
+ "core-foundation-sys",
+ "libc",
+ "ntapi",
+ "once_cell",
+ "rayon",
+ "winapi",
 ]
 
 [[package]]

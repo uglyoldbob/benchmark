@@ -9,6 +9,8 @@ use lm_sensors::prelude::*;
 
 use crate::{AppCommon, MessageToGui};
 
+use sysinfo::{DiskExt, NetworkExt, NetworksExt, ProcessExt, System, SystemExt};
+
 pub struct RootWindow {}
 
 impl RootWindow {
@@ -48,9 +50,13 @@ impl TrackedWindow<AppCommon> for RootWindow {
 
         let mut windows_to_create = vec![];
 
-        egui.egui_ctx.request_repaint_after(std::time::Duration::from_millis(100));
+        egui.egui_ctx
+            .request_repaint_after(std::time::Duration::from_millis(100));
         for thread in &mut c.cpu_threads {
             thread.process_messages();
+        }
+        for dt in &mut c.disk_threads {
+            dt.process_messages();
         }
         while let Ok(message) = c.gui_recv.try_recv() {
             match message {
@@ -62,16 +68,37 @@ impl TrackedWindow<AppCommon> for RootWindow {
             }
         }
 
-        egui_multiwin::egui::SidePanel::left("my_side_panel").show(&egui.egui_ctx, |ui| {
-            ui.heading("Hello World!");
-            if ui.button("Quit").clicked() {
-                quit = true;
-            }
-        });
+        c.sinfo.refresh_all();
 
         egui_multiwin::egui::CentralPanel::default().show(&egui.egui_ctx, |ui| {
             ui.label("I am groot".to_string());
             egui_multiwin::egui::ScrollArea::vertical().show(ui, |ui| {
+                for dt in &c.disk_threads {
+                    if !dt.done {
+                        ui.label(format!("There is a disk thread on {}", dt.path.display()));
+                        ui.horizontal(|ui| {
+                            if ui.button("Start").clicked() {
+                                dt.send.send(crate::disk::MessageToDiskLoad::Start);
+                            }
+                            if ui.button("Stop").clicked() {
+                                dt.send.send(crate::disk::MessageToDiskLoad::Stop);
+                            }
+                            ui.label(format!("Running {}", dt.running));
+                        });
+                    }
+                }
+                for disk in c.sinfo.disks() {
+                    ui.label(disk.name().to_str().unwrap());
+                    ui.label(format!("{:?}", disk));
+                }
+                for (interface_name, data) in c.sinfo.networks() {
+                    ui.label(format!(
+                        "{}: {}/{} B",
+                        interface_name,
+                        data.total_received(),
+                        data.total_transmitted()
+                    ));
+                }
                 #[cfg(target_os = "linux")]
                 if let Some(sensors) = &c.sensors {
                     for chip in sensors.chip_iter(None) {
@@ -120,7 +147,8 @@ impl TrackedWindow<AppCommon> for RootWindow {
                         .schedule_with_delay(chrono::Duration::milliseconds(5000), move || {
                             println!("Stopping all cpu threads");
                             send.send(MessageToGui::StopAllCpu);
-                        }).ignore();
+                        })
+                        .ignore();
                 }
             });
         });

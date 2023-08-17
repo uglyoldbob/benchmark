@@ -45,7 +45,8 @@ impl TrackedWindow<AppCommon> for RootWindow {
 
         let mut windows_to_create = vec![];
 
-        egui.egui_ctx.request_repaint_after(std::time::Duration::from_millis(100));
+        egui.egui_ctx
+            .request_repaint_after(std::time::Duration::from_millis(100));
 
         egui_multiwin::egui::SidePanel::left("my_side_panel").show(&egui.egui_ctx, |ui| {
             ui.heading("Hello World!");
@@ -56,8 +57,7 @@ impl TrackedWindow<AppCommon> for RootWindow {
 
         egui_multiwin::egui::CentralPanel::default().show(&egui.egui_ctx, |ui| {
             ui.label("I am groot".to_string());
-            egui_multiwin::egui::ScrollArea::vertical().show(ui, |ui| {
-            });
+            egui_multiwin::egui::ScrollArea::vertical().show(ui, |ui| {});
         });
 
         RedrawResponse {

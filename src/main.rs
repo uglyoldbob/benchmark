@@ -8,9 +8,12 @@ use cpu::MessageToCpuLoad;
 use egui_multiwin::multi_window::MultiWindow;
 
 mod cpu;
+mod disk;
 mod windows;
 
 use windows::root::{self};
+
+use sysinfo::{DiskExt, NetworkExt, NetworksExt, ProcessExt, System, SystemExt};
 
 pub enum MessageToGui {
     StopAllCpu,
@@ -21,7 +24,9 @@ pub struct AppCommon {
     sensors: Option<lm_sensors::LMSensors>,
     #[cfg(feature = "hwlocality")]
     topology: Option<hwlocality::Topology>,
+    sinfo: sysinfo::System,
     cpu_threads: Vec<cpu::CpuLoadThread>,
+    disk_threads: Vec<disk::DiskLoad>,
     timer: timer::Timer,
     gui_send: std::sync::mpsc::Sender<MessageToGui>,
     gui_recv: std::sync::mpsc::Receiver<MessageToGui>,
@@ -71,6 +76,13 @@ fn main() {
             }
         }
     }
+    let mut sinfo = sysinfo::System::new_all();
+    let mut disk_threads = vec![];
+    sinfo.refresh_disks();
+    for disk in sinfo.disks() {
+        let dthread = disk::DiskLoad::disk_read_all_files(disk.mount_point());
+        disk_threads.push(dthread);
+    }
 
     let (gs, gr) = std::sync::mpsc::channel();
 
@@ -79,7 +91,9 @@ fn main() {
         sensors: ms.ok(),
         #[cfg(feature = "hwlocality")]
         topology,
+        sinfo,
         cpu_threads: threads,
+        disk_threads,
         timer: timer::Timer::new(),
         gui_send: gs,
         gui_recv: gr,

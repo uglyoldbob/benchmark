@@ -16,8 +16,7 @@ pub enum MessageToGui {
     StopAllCpu,
 }
 
-pub struct AppCommon {
-}
+pub struct AppCommon {}
 
 impl egui_multiwin::multi_window::CommonEventHandler<AppCommon, u32> for AppCommon {
     fn process_event(
@@ -64,9 +63,7 @@ fn main() {
         }
     }
 
-    let ac = AppCommon {
-    };
-
+    let ac = AppCommon {};
 
     let _e = multi_window.add(root_window, &event_loop);
     multi_window.run(event_loop, ac);
