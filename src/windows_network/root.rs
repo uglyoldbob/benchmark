@@ -48,16 +48,27 @@ impl TrackedWindow<AppCommon> for RootWindow {
         egui.egui_ctx
             .request_repaint_after(std::time::Duration::from_millis(100));
 
-        egui_multiwin::egui::SidePanel::left("my_side_panel").show(&egui.egui_ctx, |ui| {
-            ui.heading("Hello World!");
-            if ui.button("Quit").clicked() {
-                quit = true;
-            }
-        });
-
         egui_multiwin::egui::CentralPanel::default().show(&egui.egui_ctx, |ui| {
-            ui.label("I am groot".to_string());
-            egui_multiwin::egui::ScrollArea::vertical().show(ui, |ui| {});
+            egui_multiwin::egui::ScrollArea::vertical().show(ui, |ui| {
+                for net in &c.networks {
+                    for addr in &net.addr {
+                        match addr {
+                            network_interface::Addr::V4(v4) => {
+                                ui.label(format!(
+                                    "{} v4: {}",
+                                    net.name, v4.ip
+                                ));
+                            }
+                            network_interface::Addr::V6(v6) => {
+                                ui.label(format!(
+                                    "{} v6: {}",
+                                    net.name, v6.ip
+                                ));
+                            }
+                        }
+                    }
+                }
+            });
         });
 
         RedrawResponse {

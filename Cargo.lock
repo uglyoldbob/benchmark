@@ -155,6 +155,7 @@ dependencies = [
  "egui-multiwin",
  "hwlocality",
  "lm-sensors",
+ "network-interface",
  "quanta",
  "sysinfo",
  "timer",
@@ -1205,6 +1206,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3cf2aae958bd232cac5069850591667ad422d263686d75b52a065f9badeee5a3"
 dependencies = [
  "jni-sys",
+]
+
+[[package]]
+name = "network-interface"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ab6b1b9e36c96fa1cedf2f246fe1b06b486f98180de6a07926cefda3f327d79"
+dependencies = [
+ "cc",
+ "libc",
+ "thiserror",
+ "winapi",
 ]
 
 [[package]]

@@ -11,6 +11,7 @@ mod cpu;
 mod disk;
 mod windows;
 
+use network_interface::NetworkInterfaceConfig;
 use windows::root::{self};
 
 use sysinfo::{DiskExt, NetworkExt, NetworksExt, ProcessExt, System, SystemExt};
@@ -30,6 +31,7 @@ pub struct AppCommon {
     timer: timer::Timer,
     gui_send: std::sync::mpsc::Sender<MessageToGui>,
     gui_recv: std::sync::mpsc::Receiver<MessageToGui>,
+    networks: Vec<network_interface::NetworkInterface>,
 }
 
 impl egui_multiwin::multi_window::CommonEventHandler<AppCommon, u32> for AppCommon {
@@ -85,6 +87,11 @@ fn main() {
     }
 
     let (gs, gr) = std::sync::mpsc::channel();
+    
+    let mut networks = vec![];
+    if let Ok(mut n) = network_interface::NetworkInterface::show() {
+        networks.append(&mut n);
+    }
 
     let ac = AppCommon {
         #[cfg(target_os = "linux")]
@@ -97,6 +104,7 @@ fn main() {
         timer: timer::Timer::new(),
         gui_send: gs,
         gui_recv: gr,
+        networks,
     };
 
     let thread = cpu::CpuLoadThread::new();

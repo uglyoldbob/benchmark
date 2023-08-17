@@ -92,12 +92,10 @@ impl TrackedWindow<AppCommon> for RootWindow {
                     ui.label(disk.name().to_str().unwrap());
                     ui.label(format!("{:?}", disk));
                 }
-                for (interface_name, data) in c.sinfo.networks() {
+                for net in &c.networks {
                     ui.label(format!(
-                        "{}: {}/{} B",
-                        interface_name,
-                        data.total_received(),
-                        data.total_transmitted()
+                        "{:?}",
+                        net
                     ));
                 }
                 #[cfg(target_os = "linux")]

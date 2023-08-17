@@ -10,13 +10,16 @@ use egui_multiwin::multi_window::MultiWindow;
 mod cpu;
 mod windows_network;
 
+use network_interface::NetworkInterfaceConfig;
 use windows_network::root::{self};
 
 pub enum MessageToGui {
     StopAllCpu,
 }
 
-pub struct AppCommon {}
+pub struct AppCommon {
+    networks: Vec<network_interface::NetworkInterface>,
+}
 
 impl egui_multiwin::multi_window::CommonEventHandler<AppCommon, u32> for AppCommon {
     fn process_event(
@@ -63,7 +66,14 @@ fn main() {
         }
     }
 
-    let ac = AppCommon {};
+    let mut networks = vec![];
+    if let Ok(mut n) = network_interface::NetworkInterface::show() {
+        networks.append(&mut n);
+    }
+
+    let ac = AppCommon {
+        networks,
+    };
 
     let _e = multi_window.add(root_window, &event_loop);
     multi_window.run(event_loop, ac);
