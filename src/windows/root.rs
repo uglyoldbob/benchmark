@@ -85,6 +85,7 @@ impl TrackedWindow<AppCommon> for RootWindow {
                             }
                             ui.label(format!("Running {}", dt.running));
                         });
+                        ui.label(format!("Performance: {}", dt.performance));
                     }
                 }
                 for disk in c.sinfo.disks() {

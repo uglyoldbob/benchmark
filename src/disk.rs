@@ -53,6 +53,7 @@ impl DiskLoad {
                 let mut curfile: Option<std::fs::File> = None;
                 let mut bytes_read: u64 = 0;
                 let mut read_buf: [u8; 100000] = [0; 100000];
+                let clock = quanta::Clock::new();
 
                 'load: loop {
                     while let Ok(message) = r.try_recv() {
@@ -79,8 +80,15 @@ impl DiskLoad {
                             let index = dirs.len() - 1;
                             let rdir = &mut dirs[index];
                             if let Some(f) = &mut curfile {
+                                let start = clock.raw();
                                 let len = f.read(&mut read_buf);
+                                let end = clock.raw();
+                                let d = clock.delta(start, end);
                                 if let Ok(length) = len {
+                                    if length != 0 {
+                                        println!("{} nanos for {} bytes", d.as_nanos(), length);
+                                        s2.send(MessageFromDiskLoad::Performance(1000000000 * length as u64 / d.as_nanos() as u64));
+                                    }
                                     bytes_read += length as u64;
                                     if length == 0 {
                                         //println!("Read {} bytes", bytes_read);

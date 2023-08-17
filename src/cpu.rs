@@ -39,6 +39,7 @@ impl CpuLoadThread {
             let mut sum = 0.0;
             let mut running = false;
             let mut associated = false;
+            let clock = quanta::Clock::new();
             let time = 1.0;
             'load: loop {
                 while let Ok(message) = r.try_recv() {
@@ -67,7 +68,6 @@ impl CpuLoadThread {
                     }
                 }
                 if running && associated {
-                    let clock = quanta::Clock::new();
                     let start = clock.raw();
                     let (each, r) = load_select(num_cycles);
                     sum += r;
