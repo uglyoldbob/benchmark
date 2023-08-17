@@ -9,6 +9,7 @@ use egui_multiwin::multi_window::MultiWindow;
 
 mod cpu;
 mod disk;
+mod netload;
 mod windows;
 
 use network_interface::NetworkInterfaceConfig;
@@ -87,11 +88,16 @@ fn main() {
     }
 
     let (gs, gr) = std::sync::mpsc::channel();
-    
+
     let mut networks = vec![];
     if let Ok(mut n) = network_interface::NetworkInterface::show() {
         networks.append(&mut n);
     }
+
+    let netlisteners: Vec<netload::NetworkLoad> = networks
+        .iter()
+        .flat_map(|net| net.addr.iter().map(|addr| netload::NetworkLoad::new(addr)))
+        .collect();
 
     let ac = AppCommon {
         #[cfg(target_os = "linux")]

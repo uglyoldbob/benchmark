@@ -93,10 +93,7 @@ impl TrackedWindow<AppCommon> for RootWindow {
                     ui.label(format!("{:?}", disk));
                 }
                 for net in &c.networks {
-                    ui.label(format!(
-                        "{:?}",
-                        net
-                    ));
+                    ui.label(format!("{:?}", net));
                 }
                 #[cfg(target_os = "linux")]
                 if let Some(sensors) = &c.sensors {

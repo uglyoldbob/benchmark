@@ -50,20 +50,25 @@ impl TrackedWindow<AppCommon> for RootWindow {
 
         egui_multiwin::egui::CentralPanel::default().show(&egui.egui_ctx, |ui| {
             egui_multiwin::egui::ScrollArea::vertical().show(ui, |ui| {
+                for listener in &mut c.netlisteners {
+                    ui.label(format!("Listener {:?}", listener.addr));
+                    ui.horizontal(|ui| {
+                        if ui.button("Start").clicked() {
+                            listener.send.send(crate::MessageToNetworkListener::Start);
+                        }
+                        if ui.button("Stop").clicked() {
+                            listener.send.send(crate::MessageToNetworkListener::Stop);
+                        }
+                    });
+                }
                 for net in &c.networks {
                     for addr in &net.addr {
                         match addr {
                             network_interface::Addr::V4(v4) => {
-                                ui.label(format!(
-                                    "{} v4: {}",
-                                    net.name, v4.ip
-                                ));
+                                ui.label(format!("{} v4: {}", net.name, v4.ip));
                             }
                             network_interface::Addr::V6(v6) => {
-                                ui.label(format!(
-                                    "{} v6: {}",
-                                    net.name, v6.ip
-                                ));
+                                ui.label(format!("{} v6: {}", net.name, v6.ip));
                             }
                         }
                     }

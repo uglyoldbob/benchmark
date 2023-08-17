@@ -87,7 +87,9 @@ impl DiskLoad {
                                 if let Ok(length) = len {
                                     if length != 0 {
                                         println!("{} nanos for {} bytes", d.as_nanos(), length);
-                                        s2.send(MessageFromDiskLoad::Performance(1000000000 * length as u64 / d.as_nanos() as u64));
+                                        s2.send(MessageFromDiskLoad::Performance(
+                                            1000000000 * length as u64 / d.as_nanos() as u64,
+                                        ));
                                     }
                                     bytes_read += length as u64;
                                     if length == 0 {

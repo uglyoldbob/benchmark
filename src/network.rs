@@ -4,6 +4,8 @@
     windows_subsystem = "windows"
 )] // hide console window on Windows in release
 
+use std::{net::UdpSocket, time::Duration};
+
 use cpu::MessageToCpuLoad;
 use egui_multiwin::multi_window::MultiWindow;
 
@@ -17,8 +19,114 @@ pub enum MessageToGui {
     StopAllCpu,
 }
 
+enum MessageFromNetworkListener {
+    Listening(bool),
+    Done,
+}
+
+enum MessageToNetworkListener {
+    Start,
+    Stop,
+    Exit,
+}
+
+struct NetworkListener {
+    thread: std::thread::JoinHandle<()>,
+    recv: std::sync::mpsc::Receiver<MessageFromNetworkListener>,
+    pub send: std::sync::mpsc::Sender<MessageToNetworkListener>,
+    listening: bool,
+    done: bool,
+    pub addr: network_interface::Addr,
+}
+
+impl NetworkListener {
+    pub fn process_messages(&mut self) {
+        while let Ok(message) = self.recv.try_recv() {
+            match message {
+                MessageFromNetworkListener::Listening(l) => {
+                    self.listening = l;
+                }
+                MessageFromNetworkListener::Done => {
+                    self.done = true;
+                }
+            }
+        }
+    }
+
+    fn new(addr: &network_interface::Addr) -> Self {
+        let addr = addr.to_owned();
+        let (s, r) = std::sync::mpsc::channel();
+        let (s2, r2) = std::sync::mpsc::channel();
+        let thread = std::thread::spawn(move || {
+            let mut running = false;
+            let mut socket: Option<UdpSocket> = None;
+            let mut buf: [u8; 10000] = [0; 10000];
+            'main: loop {
+                while let Ok(message) = r.try_recv() {
+                    match message {
+                        MessageToNetworkListener::Start => {
+                            running = true;
+                            if s2
+                                .send(MessageFromNetworkListener::Listening(running))
+                                .is_err()
+                            {
+                                break 'main;
+                            }
+                        }
+                        MessageToNetworkListener::Stop => {
+                            running = false;
+                            socket = None;
+                            if s2
+                                .send(MessageFromNetworkListener::Listening(running))
+                                .is_err()
+                            {
+                                break 'main;
+                            }
+                        }
+                        MessageToNetworkListener::Exit => break 'main,
+                    }
+                }
+                if running {
+                    if socket.is_none() {
+                        let s = match addr {
+                            network_interface::Addr::V4(a) => UdpSocket::bind((a.ip, 5003)),
+                            network_interface::Addr::V6(a) => UdpSocket::bind((a.ip, 5003)),
+                        };
+                        if let Ok(r) = s {
+                            r.set_nonblocking(true)
+                                .expect("Failed to enter non-blocking mode");
+                            socket = Some(r);
+                        }
+                    } else {
+                        if let Some(s) = &mut socket {
+                            if let Ok((_size, addr)) = s.recv_from(&mut buf[..]) {
+                                println!("Received from {:?} {}", addr, buf[0]);
+                                if buf[0] == b'A' {
+                                    s.send_to(&buf[..], addr);
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    std::thread::sleep(Duration::from_millis(100));
+                }
+            }
+            let _e = s2.send(MessageFromNetworkListener::Done);
+        });
+        Self {
+            thread,
+            recv: r2,
+            send: s,
+            listening: false,
+            done: false,
+            addr,
+        }
+    }
+}
+
 pub struct AppCommon {
     networks: Vec<network_interface::NetworkInterface>,
+    netlisteners: Vec<NetworkListener>,
 }
 
 impl egui_multiwin::multi_window::CommonEventHandler<AppCommon, u32> for AppCommon {
@@ -71,8 +179,14 @@ fn main() {
         networks.append(&mut n);
     }
 
+    let netlisteners: Vec<NetworkListener> = networks
+        .iter()
+        .flat_map(|net| net.addr.iter().map(|addr| NetworkListener::new(addr)))
+        .collect();
+
     let ac = AppCommon {
         networks,
+        netlisteners,
     };
 
     let _e = multi_window.add(root_window, &event_loop);
