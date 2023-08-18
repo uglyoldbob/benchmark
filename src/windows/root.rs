@@ -58,6 +58,9 @@ impl TrackedWindow<AppCommon> for RootWindow {
         for dt in &mut c.disk_threads {
             dt.process_messages();
         }
+        for nt in &mut c.net_threads {
+            nt.process_messages();
+        }
         while let Ok(message) = c.gui_recv.try_recv() {
             match message {
                 MessageToGui::StopAllCpu => {
@@ -68,11 +71,18 @@ impl TrackedWindow<AppCommon> for RootWindow {
             }
         }
 
-        c.sinfo.refresh_all();
-
         egui_multiwin::egui::CentralPanel::default().show(&egui.egui_ctx, |ui| {
             ui.label("I am groot".to_string());
             egui_multiwin::egui::ScrollArea::vertical().show(ui, |ui| {
+                for nt in &mut c.net_threads {
+                    ui.label(format!("Network load: {:?}", nt.server));
+                    if ui.button("Start").clicked() {
+                        nt.send.send(crate::netload::MessageToNetworkLoad::Start);
+                    }
+                    if ui.button("Stop").clicked() {
+                        nt.send.send(crate::netload::MessageToNetworkLoad::Stop);
+                    }
+                }
                 for dt in &c.disk_threads {
                     if !dt.done {
                         ui.label(format!("There is a disk thread on {}", dt.path.display()));
@@ -87,13 +97,6 @@ impl TrackedWindow<AppCommon> for RootWindow {
                         });
                         ui.label(format!("Performance: {}", dt.performance));
                     }
-                }
-                for disk in c.sinfo.disks() {
-                    ui.label(disk.name().to_str().unwrap());
-                    ui.label(format!("{:?}", disk));
-                }
-                for net in &c.networks {
-                    ui.label(format!("{:?}", net));
                 }
                 #[cfg(target_os = "linux")]
                 if let Some(sensors) = &c.sensors {

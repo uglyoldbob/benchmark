@@ -45,6 +45,10 @@ impl TrackedWindow<AppCommon> for RootWindow {
 
         let mut windows_to_create = vec![];
 
+        for listener in &mut c.netlisteners {
+            listener.process_messages();
+        }
+
         egui.egui_ctx
             .request_repaint_after(std::time::Duration::from_millis(100));
 
@@ -59,6 +63,7 @@ impl TrackedWindow<AppCommon> for RootWindow {
                         if ui.button("Stop").clicked() {
                             listener.send.send(crate::MessageToNetworkListener::Stop);
                         }
+                        ui.label(format!("Status: {} {}", listener.listening, listener.done));
                     });
                 }
                 for net in &c.networks {

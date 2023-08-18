@@ -60,6 +60,7 @@ impl NetworkListener {
         let thread = std::thread::spawn(move || {
             let mut running = false;
             let mut socket: Option<UdpSocket> = None;
+            let mut broadcast_socket: Option<UdpSocket> = None;
             let mut buf: [u8; 10000] = [0; 10000];
             'main: loop {
                 while let Ok(message) = r.try_recv() {
@@ -89,21 +90,54 @@ impl NetworkListener {
                 if running {
                     if socket.is_none() {
                         let s = match addr {
-                            network_interface::Addr::V4(a) => UdpSocket::bind((a.ip, 5003)),
-                            network_interface::Addr::V6(a) => UdpSocket::bind((a.ip, 5003)),
+                            network_interface::Addr::V4(a) => {
+                                UdpSocket::bind((a.ip, 5003))
+                            }
+                            network_interface::Addr::V6(a) => {
+                                UdpSocket::bind((a.ip, 5003))
+                            }
                         };
+                        let broad = match addr {
+                            network_interface::Addr::V4(a) => {
+                                if let Some(b) = a.broadcast {
+                                    Some(UdpSocket::bind((b, 5003)))
+                                }
+                                else {
+                                    None
+                                }
+                            }
+                            network_interface::Addr::V6(a) => {
+                                if let Some(b) = a.broadcast {
+                                    Some(UdpSocket::bind((b, 5003)))
+                                }
+                                else {
+                                    None
+                                }
+                            }
+                        };
+                        if let Some(Ok(broad)) = broad {
+                            if broad.set_nonblocking(true).is_ok() {
+                                broadcast_socket = Some(broad);
+                            }
+                        }
                         if let Ok(r) = s {
-                            r.set_nonblocking(true)
-                                .expect("Failed to enter non-blocking mode");
-                            socket = Some(r);
+                            if r.set_nonblocking(true).is_ok() {
+                                socket = Some(r);
+                            }
                         }
                     } else {
-                        if let Some(s) = &mut socket {
+                        if let Some(s) = &mut broadcast_socket {
                             if let Ok((_size, addr)) = s.recv_from(&mut buf[..]) {
-                                println!("Received from {:?} {}", addr, buf[0]);
+                                println!("Received broadcast from {:?} {}", addr, buf[0]);
                                 if buf[0] == b'A' {
                                     s.send_to(&buf[..], addr);
                                 }
+                            }
+                        }
+                        if let Some(s) = &mut socket {
+                            if let Ok((_size, addr)) = s.recv_from(&mut buf[..]) {
+                                println!("Received from {:?} {}", addr, buf[0]);
+                                s.send_to(&buf[..], addr);
                             }
                         }
                     }

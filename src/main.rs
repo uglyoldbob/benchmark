@@ -33,6 +33,7 @@ pub struct AppCommon {
     gui_send: std::sync::mpsc::Sender<MessageToGui>,
     gui_recv: std::sync::mpsc::Receiver<MessageToGui>,
     networks: Vec<network_interface::NetworkInterface>,
+    net_threads: Vec<netload::NetworkLoad>,
 }
 
 impl egui_multiwin::multi_window::CommonEventHandler<AppCommon, u32> for AppCommon {
@@ -111,6 +112,7 @@ fn main() {
         gui_send: gs,
         gui_recv: gr,
         networks,
+        net_threads: netlisteners,
     };
 
     let thread = cpu::CpuLoadThread::new();

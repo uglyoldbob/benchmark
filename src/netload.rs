@@ -1,4 +1,4 @@
-use std::{net::UdpSocket, time::Duration};
+use std::{net::{UdpSocket, SocketAddr}, time::Duration};
 
 pub struct NetworkLoad {
     thread: std::thread::JoinHandle<()>,
@@ -8,11 +8,13 @@ pub struct NetworkLoad {
     pub running: bool,
     pub done: bool,
     pub addr: network_interface::Addr,
+    pub server: Option<SocketAddr>,
 }
 
 pub enum MessageFromNetworkLoad {
     Ready(bool),
     Running(bool),
+    Server(Option<SocketAddr>),
     Done,
 }
 
@@ -35,6 +37,9 @@ impl NetworkLoad {
                 MessageFromNetworkLoad::Done => {
                     self.done = true;
                 }
+                MessageFromNetworkLoad::Server(s) => {
+                    self.server = s;
+                }
             }
         }
     }
@@ -48,6 +53,7 @@ impl NetworkLoad {
             let mut socket: Option<UdpSocket> = None;
             let mut buf_broad: [u8; 1000] = [0; 1000];
             let mut buf: [u8; 10000] = [0; 10000];
+            let mut server_address = None;
 
             let s = match addr {
                 network_interface::Addr::V4(a) => UdpSocket::bind((a.ip, 5002)),
@@ -79,6 +85,8 @@ impl NetworkLoad {
                     };
                     if let Ok((size, addr)) = r.recv_from(&mut buf) {
                         println!("Received a response from {}", addr);
+                        server_address = Some(addr);
+                        s2.send(MessageFromNetworkLoad::Server(server_address));
                     }
                     socket = Some(r);
                 }
@@ -106,7 +114,9 @@ impl NetworkLoad {
                         }
                     }
                     if running {
-                        std::thread::sleep(Duration::from_millis(100));
+                        if let Some(a) = server_address {
+                            sock.send_to(&buf_broad, a);
+                        }
                     } else {
                         std::thread::sleep(Duration::from_millis(100));
                     }
@@ -122,6 +132,7 @@ impl NetworkLoad {
             running: false,
             done: false,
             addr,
+            server: None,
         }
     }
 }
