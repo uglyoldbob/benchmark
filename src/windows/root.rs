@@ -61,6 +61,9 @@ impl TrackedWindow<AppCommon> for RootWindow {
         for nt in &mut c.net_threads {
             nt.process_messages();
         }
+
+        c.net_threads = c.net_threads.drain(..).filter(|i| !i.done).collect();
+
         while let Ok(message) = c.gui_recv.try_recv() {
             match message {
                 MessageToGui::StopAllCpu => {
@@ -75,12 +78,14 @@ impl TrackedWindow<AppCommon> for RootWindow {
             ui.label("I am groot".to_string());
             egui_multiwin::egui::ScrollArea::vertical().show(ui, |ui| {
                 for nt in &mut c.net_threads {
-                    ui.label(format!("Network load: {:?}", nt.server));
-                    if ui.button("Start").clicked() {
-                        nt.send.send(crate::netload::MessageToNetworkLoad::Start);
-                    }
-                    if ui.button("Stop").clicked() {
-                        nt.send.send(crate::netload::MessageToNetworkLoad::Stop);
+                    if let Some(server) = nt.server {
+                        ui.label(format!("Network load: {:?} {}", server.ip(), nt.done));
+                        if ui.button("Start").clicked() {
+                            nt.send.send(crate::netload::MessageToNetworkLoad::Start);
+                        }
+                        if ui.button("Stop").clicked() {
+                            nt.send.send(crate::netload::MessageToNetworkLoad::Stop);
+                        }
                     }
                 }
                 for dt in &c.disk_threads {

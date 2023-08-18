@@ -94,6 +94,9 @@ impl NetworkLoad {
             if s2.send(MessageFromNetworkLoad::Ready(true)).is_err() {
                 socket = None;
             }
+            if server_address.is_none() {
+                socket = None;
+            }
             if let Some(sock) = socket {
                 'main: loop {
                     while let Ok(message) = r.try_recv() {

@@ -136,7 +136,6 @@ impl NetworkListener {
                         }
                         if let Some(s) = &mut socket {
                             if let Ok((_size, addr)) = s.recv_from(&mut buf[..]) {
-                                println!("Received from {:?} {}", addr, buf[0]);
                                 s.send_to(&buf[..], addr);
                             }
                         }
