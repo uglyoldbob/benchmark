@@ -27,8 +27,11 @@ impl DiskLoad {
     pub fn read(&mut self, buf: &mut [u8]) -> Result<i32, i32> {
         let b = buf.as_mut_ptr();
         let mut amount: i32 = 0;
-        let code = unsafe { read_from_disk(self.h, b, buf.len() as i64, &amount.as_ptr()) };
+        let code = unsafe { read_from_disk(self.h, b, buf.len() as i64, &mut amount as *mut i32) };
         if code != 0 {
+            if amount == 0 {
+                unsafe { reset_disk(self.h) };
+            }
             Ok(amount)
         }
         else {
@@ -42,5 +45,6 @@ extern "C" {
     pub fn read_from_disk(h: HANDLE, buf: *mut u8, size: i64, amount: *mut i32) -> i64;
     pub fn close_disk(h: HANDLE);
     pub fn get_last_error() -> i32;
+    pub fn reset_disk(h: HANDLE);
 }
 

@@ -97,7 +97,7 @@ fn main() {
         sinfo.refresh_disks();
         for disk in sinfo.disks() {
             #[cfg(target_os = "windows")]
-            let mp = disk.mount_point();
+            let mp = disk.mount_point().to_path_buf();
             #[cfg(target_os = "linux")]
             let mp = std::path::PathBuf::from(disk.name());
             let dthread = disk::DiskLoad::disk_read_all_files(&mp);
