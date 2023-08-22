@@ -19,10 +19,9 @@ HANDLE open_disk(char *disk)
     return handle;
 }
 
-int64_t read_from_disk(HANDLE h, char *buf, int64_t size)
+int64_t read_from_disk(HANDLE h, char *buf, int64_t size, DWORD *bytes_read)
 {
-    DWORD bytes_read;
-    return ReadFile(h, buf, size, &bytes_read, NULL);
+    return ReadFile(h, buf, size, bytes_read, NULL);
 }
 
 int32_t get_last_error()

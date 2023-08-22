@@ -1,4 +1,3 @@
-#![feature(portable_simd)]
 #![cfg_attr(
     all(target_os = "windows", not(debug_assertions)),
     windows_subsystem = "windows"
@@ -50,7 +49,6 @@ impl egui_multiwin::multi_window::CommonEventHandler<AppCommon, u32> for AppComm
     }
 }
 
-
 enum SysInfoMessage {
     DiskThread(disk::DiskLoad),
 }
@@ -98,7 +96,11 @@ fn main() {
         let mut sinfo: sysinfo::System = sysinfo::System::new_all();
         sinfo.refresh_disks();
         for disk in sinfo.disks() {
-            let dthread = disk::DiskLoad::disk_read_all_files(disk.mount_point());
+            #[cfg(target_os = "windows")]
+            let mp = disk.mount_point();
+            #[cfg(target_os = "linux")]
+            let mp = std::path::PathBuf::from(disk.name());
+            let dthread = disk::DiskLoad::disk_read_all_files(&mp);
             s.send(SysInfoMessage::DiskThread(dthread));
         }
     });

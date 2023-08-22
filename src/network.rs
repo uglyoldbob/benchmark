@@ -9,7 +9,6 @@ use cpu::MessageToCpuLoad;
 use egui_multiwin::multi_window::MultiWindow;
 
 mod cpu;
-pub mod test;
 mod windows_network;
 
 use network_interface::NetworkInterfaceConfig;

@@ -1,56 +1,4 @@
-use std::io::{BufRead, Read};
-
-trait ReadEof: BufRead {
-    fn read_eof(&mut self, buf: &mut Vec<u8>) -> std::io::Result<usize> {
-        let mut read = 0;
-        loop {
-            let (done, used) = {
-                let available = match self.fill_buf() {
-                    Ok(n) => n,
-                    Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-                    Err(e) => return Err(e),
-                };
-                buf.extend_from_slice(available);
-                (false, available.len())
-            };
-            self.consume(used);
-            read += used;
-            if done || used == 0 {
-                return Ok(read);
-            }
-        }
-    }
-}
-
-struct EofRead<T> {
-    buf: std::io::BufReader<T>,
-}
-
-impl<T: Read> EofRead<T> {
-    fn new(b: T) -> Self {
-        Self {
-            buf: std::io::BufReader::new(b),
-        }
-    }
-}
-
-impl<T: Read> Read for EofRead<T> {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        self.buf.read(buf)
-    }
-}
-
-impl<T: Read> BufRead for EofRead<T> {
-    fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
-        self.buf.fill_buf()
-    }
-
-    fn consume(&mut self, amt: usize) {
-        self.buf.consume(amt)
-    }
-}
-
-impl<T: Read> ReadEof for EofRead<T> {}
+use std::io::{BufRead, SeekFrom, Seek};
 
 pub struct DiskLoad {
     thread: std::thread::JoinHandle<()>,
@@ -91,7 +39,7 @@ impl DiskLoad {
         }
     }
 
-    pub fn disk_read_all_files(p: &std::path::Path) -> Self {
+    pub fn disk_read_all_files(p: &std::path::PathBuf) -> Self {
         let (s, r) = std::sync::mpsc::channel();
         let (s2, r2) = std::sync::mpsc::channel();
         let p = p.to_owned();
@@ -101,12 +49,23 @@ impl DiskLoad {
 
             let clock = quanta::Clock::new();
             let mut buf = Box::new([0; 512000]);
+            #[cfg(target_os = "windows")]
             let mut disk = rawdisk::DiskLoad::new(&p);
+            #[cfg(target_os = "linux")]
+            let mut disk = std::fs::File::open(&p);
+            #[cfg(target_os = "windows")]
             while disk.is_err() {
                 std::thread::sleep(std::time::Duration::from_millis(100));
                 disk = rawdisk::DiskLoad::new(&p);
             }
+            #[cfg(target_os = "linux")]
+            while disk.is_err() {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                disk = std::fs::File::open(&p);
+            }
             if let Ok(mut disk) = disk {
+                #[cfg(target_os = "linux")]
+                let mut br = std::io::BufReader::new(disk);
                 println!("Successfully opened {}", p.display());
                 'load: loop {
                     while let Ok(message) = r.try_recv() {
@@ -129,13 +88,25 @@ impl DiskLoad {
                         }
                     }
                     if running {
+                        #[cfg(target_os = "windows")]
                         disk.read(buf.as_mut_slice());
+                        #[cfg(target_os = "linux")]
+                        let amt = if let Ok(b) = br.fill_buf() {
+                            b.len()
+                        } else {
+                            0
+                        };
+                        #[cfg(target_os = "linux")]
+                        if amt == 0 {
+                            let _e = br.seek(SeekFrom::Start(0));
+                        }
+                        #[cfg(target_os = "linux")]
+                        br.consume(amt);
                     } else {
                         std::thread::sleep(std::time::Duration::from_millis(100));
                     }
                 }
-            }
-            else {
+            } else {
                 println!("Failed to open {}", p.display());
             }
             let _e = s2.send(MessageFromDiskLoad::Done);

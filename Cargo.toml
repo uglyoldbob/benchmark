@@ -46,7 +46,3 @@ path = "src/main.rs"
 [[bin]]
 name = "network-listener"
 path = "src/network.rs"
-
-[[bin]]
-name = "test"
-path = "src/test.rs"
