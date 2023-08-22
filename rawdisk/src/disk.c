@@ -6,6 +6,7 @@
 
 HANDLE open_disk(char *disk)
 {
+    printf("Opening disk -%s-\n", disk);
     HANDLE handle = CreateFile(
         disk,
         GENERIC_READ,

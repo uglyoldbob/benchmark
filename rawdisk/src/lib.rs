@@ -12,7 +12,8 @@ impl DiskLoad {
         path.pop();
         let name = format!("\\\\.\\{}", path);
         println!("Disk name is {}", name);
-        let h = unsafe { open_disk(name.as_ptr()) };
+        let cstr = std::ffi::CString::new(name.as_str()).unwrap();
+        let h = unsafe { open_disk(cstr.as_c_str().as_ptr()) };
         if h != windows::Win32::Foundation::INVALID_HANDLE_VALUE {
             Ok(Self {
                 h,
@@ -36,7 +37,7 @@ impl DiskLoad {
 }
 
 extern "C" {
-    pub fn open_disk(disk: *const u8) -> HANDLE;
+    pub fn open_disk(disk: *const i8) -> HANDLE;
     pub fn read_from_disk(h: HANDLE, buf: *mut u8, size: i64) -> i64;
     pub fn close_disk(h: HANDLE);
     pub fn get_last_error() -> i32;

@@ -26,14 +26,14 @@ pub struct AppCommon {
     sensors: Option<lm_sensors::LMSensors>,
     #[cfg(feature = "hwlocality")]
     topology: Option<hwlocality::Topology>,
-    sinfo: sysinfo::System,
     cpu_threads: Vec<cpu::CpuLoadThread>,
-    disk_threads: Vec<disk::DiskLoad>,
+    sysinfo: std::sync::mpsc::Receiver<SysInfoMessage>,
     timer: timer::Timer,
     gui_send: std::sync::mpsc::Sender<MessageToGui>,
     gui_recv: std::sync::mpsc::Receiver<MessageToGui>,
     networks: Vec<network_interface::NetworkInterface>,
     net_threads: Vec<netload::NetworkLoad>,
+    disks: Vec<disk::DiskLoad>,
 }
 
 impl egui_multiwin::multi_window::CommonEventHandler<AppCommon, u32> for AppCommon {
@@ -48,6 +48,11 @@ impl egui_multiwin::multi_window::CommonEventHandler<AppCommon, u32> for AppComm
         }
         windows_to_create
     }
+}
+
+
+enum SysInfoMessage {
+    DiskThread(disk::DiskLoad),
 }
 
 fn main() {
@@ -80,13 +85,6 @@ fn main() {
             }
         }
     }
-    let mut sinfo = sysinfo::System::new_all();
-    let mut disk_threads = vec![];
-    sinfo.refresh_disks();
-    for disk in sinfo.disks() {
-        let dthread = disk::DiskLoad::disk_read_all_files(disk.mount_point());
-        disk_threads.push(dthread);
-    }
 
     let (gs, gr) = std::sync::mpsc::channel();
 
@@ -94,6 +92,16 @@ fn main() {
     if let Ok(mut n) = network_interface::NetworkInterface::show() {
         networks.append(&mut n);
     }
+
+    let (s, r) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let mut sinfo: sysinfo::System = sysinfo::System::new_all();
+        sinfo.refresh_disks();
+        for disk in sinfo.disks() {
+            let dthread = disk::DiskLoad::disk_read_all_files(disk.mount_point());
+            s.send(SysInfoMessage::DiskThread(dthread));
+        }
+    });
 
     let netlisteners: Vec<netload::NetworkLoad> = networks
         .iter()
@@ -105,14 +113,14 @@ fn main() {
         sensors: ms.ok(),
         #[cfg(feature = "hwlocality")]
         topology,
-        sinfo,
         cpu_threads: threads,
-        disk_threads,
         timer: timer::Timer::new(),
         gui_send: gs,
         gui_recv: gr,
         networks,
         net_threads: netlisteners,
+        sysinfo: r,
+        disks: vec![],
     };
 
     let thread = cpu::CpuLoadThread::new();

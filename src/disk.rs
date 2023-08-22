@@ -102,6 +102,10 @@ impl DiskLoad {
             let clock = quanta::Clock::new();
             let mut buf = Box::new([0; 512000]);
             let mut disk = rawdisk::DiskLoad::new(&p);
+            while disk.is_err() {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                disk = rawdisk::DiskLoad::new(&p);
+            }
             if let Ok(mut disk) = disk {
                 println!("Successfully opened {}", p.display());
                 'load: loop {
@@ -130,6 +134,9 @@ impl DiskLoad {
                         std::thread::sleep(std::time::Duration::from_millis(100));
                     }
                 }
+            }
+            else {
+                println!("Failed to open {}", p.display());
             }
             let _e = s2.send(MessageFromDiskLoad::Done);
         });

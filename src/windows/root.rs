@@ -55,7 +55,14 @@ impl TrackedWindow<AppCommon> for RootWindow {
         for thread in &mut c.cpu_threads {
             thread.process_messages();
         }
-        for dt in &mut c.disk_threads {
+        while let Ok(m) = c.sysinfo.try_recv() {
+            match m {
+                crate::SysInfoMessage::DiskThread(d) => {
+                    c.disks.push(d);
+                }
+            }
+        }
+        for dt in &mut c.disks {
             dt.process_messages();
         }
         for nt in &mut c.net_threads {
@@ -88,7 +95,7 @@ impl TrackedWindow<AppCommon> for RootWindow {
                         }
                     }
                 }
-                for dt in &c.disk_threads {
+                for dt in &c.disks {
                     if !dt.done {
                         ui.label(format!("There is a disk thread on {}", dt.path.display()));
                         ui.horizontal(|ui| {
