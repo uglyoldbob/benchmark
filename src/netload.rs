@@ -1,4 +1,7 @@
-use std::{net::{UdpSocket, SocketAddr}, time::Duration};
+use std::{
+    net::{SocketAddr, UdpSocket},
+    time::Duration,
+};
 
 pub struct NetworkLoad {
     thread: std::thread::JoinHandle<()>,

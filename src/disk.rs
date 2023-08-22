@@ -1,4 +1,56 @@
-use std::io::Read;
+use std::io::{BufRead, Read};
+
+trait ReadEof: BufRead {
+    fn read_eof(&mut self, buf: &mut Vec<u8>) -> std::io::Result<usize> {
+        let mut read = 0;
+        loop {
+            let (done, used) = {
+                let available = match self.fill_buf() {
+                    Ok(n) => n,
+                    Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                    Err(e) => return Err(e),
+                };
+                buf.extend_from_slice(available);
+                (false, available.len())
+            };
+            self.consume(used);
+            read += used;
+            if done || used == 0 {
+                return Ok(read);
+            }
+        }
+    }
+}
+
+struct EofRead<T> {
+    buf: std::io::BufReader<T>,
+}
+
+impl<T: Read> EofRead<T> {
+    fn new(b: T) -> Self {
+        Self {
+            buf: std::io::BufReader::new(b),
+        }
+    }
+}
+
+impl<T: Read> Read for EofRead<T> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.buf.read(buf)
+    }
+}
+
+impl<T: Read> BufRead for EofRead<T> {
+    fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
+        self.buf.fill_buf()
+    }
+
+    fn consume(&mut self, amt: usize) {
+        self.buf.consume(amt)
+    }
+}
+
+impl<T: Read> ReadEof for EofRead<T> {}
 
 pub struct DiskLoad {
     thread: std::thread::JoinHandle<()>,
@@ -47,14 +99,11 @@ impl DiskLoad {
         let thread = std::thread::spawn(move || {
             let mut running = false;
 
-            let rd = std::fs::read_dir(&p);
-            if let Ok(rd) = rd {
-                let mut dirs: Vec<std::fs::ReadDir> = vec![rd];
-                let mut curfile: Option<std::fs::File> = None;
-                let mut bytes_read: u64 = 0;
-                let mut read_buf: [u8; 100000] = [0; 100000];
-                let clock = quanta::Clock::new();
-
+            let clock = quanta::Clock::new();
+            let mut buf = Box::new([0; 512000]);
+            let mut disk = rawdisk::DiskLoad::new(&p);
+            if let Ok(mut disk) = disk {
+                println!("Successfully opened {}", p.display());
                 'load: loop {
                     while let Ok(message) = r.try_recv() {
                         match message {
@@ -76,52 +125,7 @@ impl DiskLoad {
                         }
                     }
                     if running {
-                        if !dirs.is_empty() {
-                            let index = dirs.len() - 1;
-                            let rdir = &mut dirs[index];
-                            if let Some(f) = &mut curfile {
-                                let start = clock.raw();
-                                let len = f.read(&mut read_buf);
-                                let end = clock.raw();
-                                let d = clock.delta(start, end);
-                                if let Ok(length) = len {
-                                    if length != 0 {
-                                        println!("{} nanos for {} bytes", d.as_nanos(), length);
-                                        s2.send(MessageFromDiskLoad::Performance(
-                                            1000000000 * length as u64 / d.as_nanos() as u64,
-                                        ));
-                                    }
-                                    bytes_read += length as u64;
-                                    if length == 0 {
-                                        //println!("Read {} bytes", bytes_read);
-                                        curfile = None;
-                                    }
-                                } else {
-                                    //println!("Read {} bytes", bytes_read);
-                                    curfile = None;
-                                }
-                            } else {
-                                if let Some(Ok(a)) = rdir.next() {
-                                    let path = a.path();
-                                    if path.is_dir() && !path.is_symlink() {
-                                        //println!(" dir: {}", path.display());
-                                        let rd = std::fs::read_dir(path.clone());
-                                        if let Ok(rd) = rd {
-                                            dirs.push(rd);
-                                        }
-                                    } else if path.is_file() {
-                                        curfile = std::fs::File::open(a.path()).ok();
-                                        bytes_read = 0;
-                                        //println!("File: {:?}", a.path());
-                                    }
-                                } else {
-                                    dirs.pop();
-                                }
-                            }
-                        } else {
-                            //println!("Restarting");
-                            dirs.push(std::fs::read_dir(&p).unwrap());
-                        }
+                        disk.read(buf.as_mut_slice());
                     } else {
                         std::thread::sleep(std::time::Duration::from_millis(100));
                     }

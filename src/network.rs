@@ -10,6 +10,7 @@ use cpu::MessageToCpuLoad;
 use egui_multiwin::multi_window::MultiWindow;
 
 mod cpu;
+pub mod test;
 mod windows_network;
 
 use network_interface::NetworkInterfaceConfig;
@@ -90,27 +91,21 @@ impl NetworkListener {
                 if running {
                     if socket.is_none() {
                         let s = match addr {
-                            network_interface::Addr::V4(a) => {
-                                UdpSocket::bind((a.ip, 5003))
-                            }
-                            network_interface::Addr::V6(a) => {
-                                UdpSocket::bind((a.ip, 5003))
-                            }
+                            network_interface::Addr::V4(a) => UdpSocket::bind((a.ip, 5003)),
+                            network_interface::Addr::V6(a) => UdpSocket::bind((a.ip, 5003)),
                         };
                         let broad = match addr {
                             network_interface::Addr::V4(a) => {
                                 if let Some(b) = a.broadcast {
                                     Some(UdpSocket::bind((b, 5003)))
-                                }
-                                else {
+                                } else {
                                     None
                                 }
                             }
                             network_interface::Addr::V6(a) => {
                                 if let Some(b) = a.broadcast {
                                     Some(UdpSocket::bind((b, 5003)))
-                                }
-                                else {
+                                } else {
                                     None
                                 }
                             }
